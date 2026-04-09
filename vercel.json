@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm install --prefix apps/web && npm run build --prefix apps/web",
+  "buildCommand": "rm -rf apps/web/dist && npm install --prefix apps/web && npm run build --prefix apps/web",
   "outputDirectory": "apps/web/dist",
   "rewrites": [
     { "source": "/health", "destination": "/api/index.py" },
