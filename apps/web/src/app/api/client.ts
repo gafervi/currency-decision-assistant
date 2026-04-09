@@ -8,7 +8,7 @@ import {
 } from '../types';
 
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
 
 interface SummaryApiResponse {
@@ -17,6 +17,8 @@ interface SummaryApiResponse {
     current_rate: number;
     official_buy_rate: number;
     official_sell_rate: number;
+    previous_official_buy_rate: number;
+    previous_official_sell_rate: number;
     spread: number;
     observed_at: string;
   };
@@ -75,6 +77,8 @@ function mapSnapshot(snapshot: SummaryApiResponse['snapshot']): RateSnapshot {
     currentRate: snapshot.current_rate,
     officialBuyRate: snapshot.official_buy_rate,
     officialSellRate: snapshot.official_sell_rate,
+    previousOfficialBuyRate: snapshot.previous_official_buy_rate,
+    previousOfficialSellRate: snapshot.previous_official_sell_rate,
     spread: snapshot.spread,
     observedAt: snapshot.observed_at,
   };

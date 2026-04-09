@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build --prefix apps/web",
+  "outputDirectory": "apps/web/dist",
+  "rewrites": [
+    { "source": "/health", "destination": "/api/index.py" },
+    { "source": "/dashboard", "destination": "/api/index.py" },
+    { "source": "/summary", "destination": "/api/index.py" },
+    { "source": "/history", "destination": "/api/index.py" },
+    { "source": "/entities", "destination": "/api/index.py" },
+    { "source": "/recommendation", "destination": "/api/index.py" },
+    { "source": "/catalog", "destination": "/api/index.py" }
+  ]
+}

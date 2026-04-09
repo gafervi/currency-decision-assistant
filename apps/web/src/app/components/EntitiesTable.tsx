@@ -12,11 +12,14 @@ interface EntitiesTableProps {
 
 export function EntitiesTable({ mode, entities, locale }: EntitiesTableProps) {
   const [filter, setFilter] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'bestBuy' | 'bestSell' | 'name'>('bestSell');
+  const [sortBy, setSortBy] = useState<'bestBuy' | 'bestSell' | 'name' | 'lastUpdated'>('bestSell');
+  const [query, setQuery] = useState('');
+  const [showAll, setShowAll] = useState(false);
   const typeOptions = Array.from(new Set(entities.map((entity) => entity.type))).sort();
 
   const filteredEntities = entities.filter(entity => 
-    filter === 'all' || entity.type === filter
+    (filter === 'all' || entity.type === filter) &&
+    entity.name.toLowerCase().includes(query.trim().toLowerCase())
   );
 
   const sortedEntities = [...filteredEntities].sort((a, b) => {
@@ -27,10 +30,14 @@ export function EntitiesTable({ mode, entities, locale }: EntitiesTableProps) {
         return a.sellPrice - b.sellPrice; // Lower sell price is better for buying CRC
       case 'name':
         return a.name.localeCompare(b.name);
+      case 'lastUpdated':
+        return new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime();
       default:
         return 0;
     }
   });
+
+  const visibleEntities = showAll ? sortedEntities : sortedEntities.slice(0, 5);
 
   const bestBuyPrice = Math.max(...entities.map(e => e.buyPrice));
   const bestSellPrice = Math.min(...entities.map(e => e.sellPrice));
@@ -43,7 +50,13 @@ export function EntitiesTable({ mode, entities, locale }: EntitiesTableProps) {
             {copy[locale].entitiesTitle}
         </h2>
         
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={copy[locale].searchByName}
+            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+          />
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value as any)}
@@ -62,6 +75,7 @@ export function EntitiesTable({ mode, entities, locale }: EntitiesTableProps) {
           >
               <option value="bestBuy">{copy[locale].bestBuy}</option>
               <option value="bestSell">{copy[locale].bestSell}</option>
+              <option value="lastUpdated">{copy[locale].lastUpdatedSort}</option>
               <option value="name">{copy[locale].name}</option>
           </select>
         </div>
@@ -90,7 +104,7 @@ export function EntitiesTable({ mode, entities, locale }: EntitiesTableProps) {
             </tr>
           </thead>
           <tbody>
-            {sortedEntities.map((entity) => {
+            {visibleEntities.map((entity) => {
               const isBestBuy = entity.buyPrice === bestBuyPrice;
               const isBestSell = entity.sellPrice === bestSellPrice;
               
@@ -138,6 +152,18 @@ export function EntitiesTable({ mode, entities, locale }: EntitiesTableProps) {
           </tbody>
         </table>
       </div>
+
+      {sortedEntities.length > 5 ? (
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setShowAll((current) => !current)}
+            className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-900"
+          >
+            {showAll ? copy[locale].showLess : copy[locale].showMore}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

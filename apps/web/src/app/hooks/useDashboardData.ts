@@ -11,11 +11,14 @@ export function useDashboardData(mode: Mode, amount: number, locale: Locale) {
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
-    setError(null);
+    const fetchDashboard = async (isInitialLoad: boolean) => {
+      if (isInitialLoad) {
+        setLoading(true);
+      }
+      setError(null);
 
-    loadDashboard(mode, amount, locale)
-      .then((nextState) => {
+      try {
+        const nextState = await loadDashboard(mode, amount, locale);
         if (!active) {
           return;
         }
@@ -23,20 +26,25 @@ export function useDashboardData(mode: Mode, amount: number, locale: Locale) {
         startTransition(() => {
           setState(nextState);
         });
-      })
-      .catch((nextError: Error) => {
+      } catch (nextError) {
         if (active) {
-          setError(nextError.message);
+          setError(nextError instanceof Error ? nextError.message : 'Load failed');
         }
-      })
-      .finally(() => {
-        if (active) {
+      } finally {
+        if (active && isInitialLoad) {
           setLoading(false);
         }
-      });
+      }
+    };
+
+    void fetchDashboard(true);
+    const interval = window.setInterval(() => {
+      void fetchDashboard(false);
+    }, 60000);
 
     return () => {
       active = false;
+      window.clearInterval(interval);
     };
   }, [mode, amount, locale]);
 

@@ -13,6 +13,8 @@ export interface RateSnapshot {
   currentRate: number;
   officialBuyRate: number;
   officialSellRate: number;
+  previousOfficialBuyRate: number;
+  previousOfficialSellRate: number;
   spread: number;
   observedAt: string;
 }

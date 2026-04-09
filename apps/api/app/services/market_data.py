@@ -25,6 +25,13 @@ def _latest_valid_point(points: list[HistoryPoint]) -> HistoryPoint:
     return valid_points[-1]
 
 
+def _previous_valid_point(points: list[HistoryPoint]) -> HistoryPoint:
+    valid_points = [point for point in points if not point.future_dated]
+    if len(valid_points) < 2:
+        raise ValueError("At least two non-future-dated points are required")
+    return valid_points[-2]
+
+
 def get_market_context() -> MarketContext:
     return market_cache.get_or_set(_load_market_context)
 
@@ -51,11 +58,15 @@ def _load_market_context() -> MarketContext:
     )
     latest_buy = _latest_valid_point(buy_history)
     latest_sell = _latest_valid_point(sell_history)
+    previous_buy = _previous_valid_point(buy_history)
+    previous_sell = _previous_valid_point(sell_history)
     current = round((latest_buy.value + latest_sell.value) / 2, 2)
     snapshot = RateSnapshot(
         current_rate=current,
         official_buy_rate=latest_buy.value,
         official_sell_rate=latest_sell.value,
+        previous_official_buy_rate=previous_buy.value,
+        previous_official_sell_rate=previous_sell.value,
         spread=round(latest_sell.value - latest_buy.value, 4),
         observed_at=max(
             client.last_observed_at(settings.bccr_indicator_buy, buy_history),

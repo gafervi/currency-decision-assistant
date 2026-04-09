@@ -1,5 +1,6 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from functools import lru_cache
+from zoneinfo import ZoneInfo
 
 import httpx
 from bs4 import BeautifulSoup
@@ -11,7 +12,8 @@ from app.services.cache import TimedCache
 VENTANILLA_URL = (
     "https://gee.bccr.fi.cr/IndicadoresEconomicos/Cuadros/frmConsultaTCVentanilla.aspx"
 )
-ventanilla_cache = TimedCache[list[EntityQuote]](ttl_seconds=300)
+ventanilla_cache = TimedCache[list[EntityQuote]](ttl_seconds=60)
+CR_TZ = ZoneInfo("America/Costa_Rica")
 
 
 def _parse_decimal(value: str) -> float:
@@ -20,9 +22,7 @@ def _parse_decimal(value: str) -> float:
 
 def _parse_timestamp(value: str) -> datetime:
     normalized = value.replace("a.m.", "AM").replace("p.m.", "PM")
-    return datetime.strptime(normalized, "%d/%m/%Y %I:%M %p").replace(
-        tzinfo=timezone.utc
-    )
+    return datetime.strptime(normalized, "%d/%m/%Y %I:%M %p").replace(tzinfo=CR_TZ)
 
 
 def get_live_entities(mode: str) -> EntitiesResponse:
