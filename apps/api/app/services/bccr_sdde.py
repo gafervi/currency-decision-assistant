@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from functools import lru_cache
 
 import httpx
 
@@ -21,8 +22,13 @@ class BccrSddeClient:
             "Accept": "application/json",
         }
 
+    @staticmethod
+    @lru_cache(maxsize=1)
+    def _client() -> httpx.Client:
+        return httpx.Client(timeout=20.0)
+
     def _get(self, url: str) -> dict:
-        response = httpx.get(url, headers=self._headers(), timeout=20.0)
+        response = self._client().get(url, headers=self._headers())
         response.raise_for_status()
         return response.json()
 

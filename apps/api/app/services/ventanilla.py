@@ -1,14 +1,17 @@
 from datetime import datetime, timezone
+from functools import lru_cache
 
 import httpx
 from bs4 import BeautifulSoup
 
 from app.schemas import EntitiesResponse, EntityQuote
+from app.services.cache import TimedCache
 
 
 VENTANILLA_URL = (
     "https://gee.bccr.fi.cr/IndicadoresEconomicos/Cuadros/frmConsultaTCVentanilla.aspx"
 )
+ventanilla_cache = TimedCache[list[EntityQuote]](ttl_seconds=300)
 
 
 def _parse_decimal(value: str) -> float:
@@ -23,7 +26,33 @@ def _parse_timestamp(value: str) -> datetime:
 
 
 def get_live_entities(mode: str) -> EntitiesResponse:
-    response = httpx.get(VENTANILLA_URL, timeout=20.0)
+    entities = ventanilla_cache.get_or_set(_load_entities)
+
+    best_buy = max(entity.buy_price for entity in entities)
+    best_sell = min(entity.sell_price for entity in entities)
+    highlighted = []
+
+    for entity in entities:
+        highlighted.append(
+            entity.model_copy(
+                update={
+                    "highlighted_for_mode": entity.sell_price == best_sell
+                    if mode == "buy"
+                    else entity.buy_price == best_buy
+                }
+            )
+        )
+
+    return EntitiesResponse(mode=mode, source="live", entities=highlighted)
+
+
+@lru_cache(maxsize=1)
+def _client() -> httpx.Client:
+    return httpx.Client(timeout=20.0)
+
+
+def _load_entities() -> list[EntityQuote]:
+    response = _client().get(VENTANILLA_URL)
     response.raise_for_status()
     soup = BeautifulSoup(response.text, "html.parser")
     table = soup.find("table", id="DG")
@@ -51,20 +80,15 @@ def get_live_entities(mode: str) -> EntitiesResponse:
         if not name:
             continue
 
-        buy_price = _parse_decimal(values[2])
-        sell_price = _parse_decimal(values[3])
-        spread = _parse_decimal(values[4])
-        last_updated = _parse_timestamp(" ".join(values[5].split()))
-
         entities.append(
             EntityQuote(
                 id=name.lower().replace(" ", "-")[:60],
                 type=current_type or "Entidad autorizada",
                 name=name,
-                buy_price=buy_price,
-                sell_price=sell_price,
-                spread=spread,
-                last_updated=last_updated,
+                buy_price=_parse_decimal(values[2]),
+                sell_price=_parse_decimal(values[3]),
+                spread=_parse_decimal(values[4]),
+                last_updated=_parse_timestamp(" ".join(values[5].split())),
                 highlighted_for_mode=False,
             )
         )
@@ -72,19 +96,4 @@ def get_live_entities(mode: str) -> EntitiesResponse:
     if not entities:
         raise ValueError("No ventanilla entities parsed")
 
-    best_buy = max(entity.buy_price for entity in entities)
-    best_sell = min(entity.sell_price for entity in entities)
-    highlighted = []
-
-    for entity in entities:
-        highlighted.append(
-            entity.model_copy(
-                update={
-                    "highlighted_for_mode": entity.sell_price == best_sell
-                    if mode == "buy"
-                    else entity.buy_price == best_buy
-                }
-            )
-        )
-
-    return EntitiesResponse(mode=mode, source="live", entities=highlighted)
+    return entities

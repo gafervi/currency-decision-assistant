@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from app.core.config import get_settings
 from app.schemas import HistoryPoint, RateSnapshot
 from app.services.bccr_sdde import BccrSddeClient
+from app.services.cache import TimedCache
 
 
 @dataclass
@@ -14,6 +15,9 @@ class MarketContext:
     source: str = "live"
 
 
+market_cache = TimedCache[MarketContext](ttl_seconds=300)
+
+
 def _latest_valid_point(points: list[HistoryPoint]) -> HistoryPoint:
     valid_points = [point for point in points if not point.future_dated]
     if not valid_points:
@@ -22,6 +26,10 @@ def _latest_valid_point(points: list[HistoryPoint]) -> HistoryPoint:
 
 
 def get_market_context() -> MarketContext:
+    return market_cache.get_or_set(_load_market_context)
+
+
+def _load_market_context() -> MarketContext:
     settings = get_settings()
     client = BccrSddeClient()
 

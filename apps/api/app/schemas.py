@@ -88,3 +88,10 @@ class RecommendationResponse(BaseModel):
     source: Literal["live", "mock"] = "mock"
     snapshot: RateSnapshot
     recommendation: RecommendationPayload
+
+
+class DashboardResponse(BaseModel):
+    source: Literal["live", "mock"] = "mock"
+    summary: SummaryResponse
+    history: HistoryResponse
+    entities: EntitiesResponse

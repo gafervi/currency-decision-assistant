@@ -33,6 +33,7 @@ interface SummaryApiResponse {
 
 
 interface HistoryApiResponse {
+  source: 'live' | 'mock';
   points: Array<{
     date: string;
     value: number;
@@ -42,6 +43,7 @@ interface HistoryApiResponse {
 
 
 interface EntitiesApiResponse {
+  source: 'live' | 'mock';
   entities: Array<{
     id: string;
     type: string;
@@ -57,6 +59,14 @@ interface EntitiesApiResponse {
 
 interface ApiErrorResponse {
   detail?: string;
+}
+
+
+interface DashboardApiResponse {
+  source: 'live' | 'mock';
+  summary: SummaryApiResponse;
+  history: HistoryApiResponse;
+  entities: EntitiesApiResponse;
 }
 
 
@@ -120,17 +130,15 @@ async function getJson<T>(path: string): Promise<T> {
 
 
 export async function loadDashboard(mode: Mode, amount: number, locale: 'es' | 'en'): Promise<DashboardState> {
-  const [summary, history, entities] = await Promise.all([
-    getJson<SummaryApiResponse>(`/summary?mode=${mode}&amount=${amount}&locale=${locale}`),
-    getJson<HistoryApiResponse>(`/history?mode=${mode}`),
-    getJson<EntitiesApiResponse>(`/entities?mode=${mode}`),
-  ]);
+  const dashboard = await getJson<DashboardApiResponse>(
+    `/dashboard?mode=${mode}&amount=${amount}&locale=${locale}`,
+  );
 
   return {
-    source: summary.source,
-    snapshot: mapSnapshot(summary.snapshot),
-    recommendation: mapRecommendation(summary.recommendation),
-    history: mapHistory(history.points),
-    entities: mapEntities(entities.entities),
+    source: dashboard.source,
+    snapshot: mapSnapshot(dashboard.summary.snapshot),
+    recommendation: mapRecommendation(dashboard.summary.recommendation),
+    history: mapHistory(dashboard.history.points),
+    entities: mapEntities(dashboard.entities.entities),
   };
 }

@@ -2,11 +2,13 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas import (
     CatalogResponse,
+    DashboardResponse,
     EntitiesResponse,
     HistoryResponse,
     RecommendationResponse,
     SummaryResponse,
 )
+from app.services.dashboard import get_dashboard
 from app.services.catalog import get_catalog_summary
 from app.services.entities import get_entities_snapshot
 from app.services.history import get_history
@@ -15,6 +17,18 @@ from app.services.summary import get_summary
 
 
 router = APIRouter()
+
+
+@router.get("/dashboard", response_model=DashboardResponse)
+def dashboard(
+    mode: str = Query("buy", pattern="^(buy|sell)$"),
+    amount: float = Query(0, ge=0),
+    locale: str = Query("es", pattern="^(es|en)$"),
+) -> DashboardResponse:
+    try:
+        return get_dashboard(mode=mode, amount=amount, locale=locale)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.get("/summary", response_model=SummaryResponse)
