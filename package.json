@@ -1,0 +1,9 @@
+{
+  "name": "currency-decision-assistant",
+  "private": true,
+  "scripts": {
+    "dev:api": "cd apps/api && .venv/bin/python -m uvicorn app.main:app --reload --port 8000",
+    "dev:web": "npm run dev --prefix apps/web",
+    "build:web": "npm run build --prefix apps/web"
+  }
+}

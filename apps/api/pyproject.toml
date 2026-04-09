@@ -1,0 +1,20 @@
+[project]
+name = "currency-decision-assistant-backend"
+version = "0.1.0"
+description = "FastAPI backend for CRC/USD decision support"
+requires-python = ">=3.10"
+dependencies = [
+  "beautifulsoup4>=4.12,<5.0",
+  "fastapi>=0.115,<1.0",
+  "httpx>=0.27,<1.0",
+  "pydantic-settings>=2.4,<3.0",
+  "python-dotenv>=1.0,<2.0",
+  "uvicorn[standard]>=0.30,<1.0",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
