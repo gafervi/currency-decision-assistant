@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { HelpCircle, TrendingUp } from 'lucide-react';
-import { RecommendationPayload, Locale, Mode } from '../types';
-import { formatCurrency } from '../lib/format';
+import { RecommendationPayload, Locale, Mode, HistoryPoint } from '../types';
+import { formatChartDate, formatCurrency } from '../lib/format';
 import { copy, getActionLabel } from '../i18n';
 
 interface UserInputSectionProps {
@@ -11,6 +11,10 @@ interface UserInputSectionProps {
   amount: number;
   onAmountChange: (amount: number) => void;
   currentRate: number;
+  history: HistoryPoint[];
+  nextBuyRate: number | null;
+  nextSellRate: number | null;
+  nextEffectiveDate: string | null;
   recommendation: RecommendationPayload;
   source: 'live' | 'mock';
   loading: boolean;
@@ -23,6 +27,10 @@ export function UserInputSection({
   amount,
   onAmountChange,
   currentRate,
+  history,
+  nextBuyRate,
+  nextSellRate,
+  nextEffectiveDate,
   recommendation,
   source,
   loading,
@@ -122,36 +130,44 @@ export function UserInputSection({
 
   const amountLabel = mode === 'buy' ? copy[locale].crcAmount : copy[locale].usdAmount;
   const amountPrefix = mode === 'buy' ? '₡' : '$';
+  const fallbackTomorrowPoint = history.find((point) => point.futureDated) ?? null;
+  const resolvedNextBuyRate = nextBuyRate ?? (mode === 'sell' ? fallbackTomorrowPoint?.value ?? null : null);
+  const resolvedNextSellRate = nextSellRate ?? (mode === 'buy' ? fallbackTomorrowPoint?.value ?? null : null);
+  const resolvedNextEffectiveDate = nextEffectiveDate ?? fallbackTomorrowPoint?.date ?? null;
+  const tomorrowPreviewVisible = resolvedNextBuyRate !== null && resolvedNextSellRate !== null && resolvedNextEffectiveDate !== null;
+  const modeButtons = [
+    { value: 'sell' as const, label: copy[locale].sellMode, activeClassName: 'bg-red-500 text-white' },
+    { value: 'buy' as const, label: copy[locale].buyMode, activeClassName: 'bg-green-500 text-white' },
+  ];
+
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-4 sm:p-6">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-          {copy[locale].decisionContext}
-        </h2>
+      <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            {copy[locale].decisionContext}
+          </h2>
 
-      <div className="flex flex-wrap gap-3 mb-6">
-        <button
-          onClick={() => onModeChange('sell')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            mode === 'sell'
-              ? 'bg-red-500 text-white'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-          }`}
-        >
-          {copy[locale].sellMode}
-        </button>
-        <button
-          onClick={() => onModeChange('buy')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            mode === 'buy'
-              ? 'bg-green-500 text-white'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-          }`}
-        >
-          {copy[locale].buyMode}
-        </button>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {modeButtons.map((button) => (
+              <button
+                key={button.value}
+                onClick={() => onModeChange(button.value)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  mode === button.value
+                    ? button.activeClassName
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                }`}
+              >
+                {button.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
       </div>
 
-      <div className="mb-6">
+      <div className="mb-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             {amountLabel}
@@ -172,7 +188,7 @@ export function UserInputSection({
               placeholder={copy[locale].amountPlaceholder}
             />
           </div>
-          <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
             {getSuggestion()}
           </p>
         </div>
@@ -207,6 +223,27 @@ export function UserInputSection({
           </div>
         </div>
       </div>
+
+      {tomorrowPreviewVisible ? (
+        <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 dark:border-violet-900/40 dark:bg-violet-900/20">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300">
+            {copy[locale].tomorrowPreview}
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-3 text-sm sm:max-w-sm">
+            <div>
+              <div className="text-[11px] uppercase tracking-wide text-violet-600 dark:text-violet-300">{copy[locale].buyPrice}</div>
+              <div className="font-semibold text-violet-900 dark:text-violet-100">₡{formatCurrency(resolvedNextBuyRate ?? 0, locale)}</div>
+            </div>
+            <div>
+              <div className="text-[11px] uppercase tracking-wide text-violet-600 dark:text-violet-300">{copy[locale].sellPrice}</div>
+              <div className="font-semibold text-violet-900 dark:text-violet-100">₡{formatCurrency(resolvedNextSellRate ?? 0, locale)}</div>
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-violet-700 dark:text-violet-300">
+            {copy[locale].effectiveOn} {formatChartDate(resolvedNextEffectiveDate ?? '', false, locale)}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

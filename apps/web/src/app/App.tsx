@@ -111,6 +111,10 @@ export default function App() {
             amount={amount}
             onAmountChange={setAmount}
             currentRate={dashboard.snapshot.currentRate}
+            history={dashboard.history}
+            nextBuyRate={dashboard.snapshot.nextOfficialBuyRate}
+            nextSellRate={dashboard.snapshot.nextOfficialSellRate}
+            nextEffectiveDate={dashboard.snapshot.nextEffectiveDate}
             recommendation={dashboard.recommendation}
             source={dashboard.source}
             loading={loading}
@@ -134,6 +138,7 @@ export default function App() {
       <footer className="safe-px safe-pb border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 py-6 mt-12">
         <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 text-center text-sm text-gray-600 dark:text-gray-400">
           <p>{copy[locale].appTitle} • {copy[locale].footer}</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">{copy[locale].footerBccrApi}</p>
           <p className="mt-1">Created by Gabriel Fernandez Vargas</p>
         </div>
       </footer>

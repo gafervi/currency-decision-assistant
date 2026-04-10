@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from app.core.config import get_settings
 from app.schemas import HistoryPoint, RateSnapshot
@@ -32,6 +32,10 @@ def _previous_valid_point(points: list[HistoryPoint]) -> HistoryPoint:
     return valid_points[-2]
 
 
+def _next_future_point(points: list[HistoryPoint]) -> HistoryPoint | None:
+    return next((point for point in points if point.future_dated), None)
+
+
 def get_market_context() -> MarketContext:
     return market_cache.get_or_set(_load_market_context)
 
@@ -60,6 +64,8 @@ def _load_market_context() -> MarketContext:
     latest_sell = _latest_valid_point(sell_history)
     previous_buy = _previous_valid_point(buy_history)
     previous_sell = _previous_valid_point(sell_history)
+    next_buy = _next_future_point(buy_history)
+    next_sell = _next_future_point(sell_history)
     current = round((latest_buy.value + latest_sell.value) / 2, 2)
     snapshot = RateSnapshot(
         current_rate=current,
@@ -67,10 +73,19 @@ def _load_market_context() -> MarketContext:
         official_sell_rate=latest_sell.value,
         previous_official_buy_rate=previous_buy.value,
         previous_official_sell_rate=previous_sell.value,
+        next_official_buy_rate=next_buy.value if next_buy else None,
+        next_official_sell_rate=next_sell.value if next_sell else None,
+        next_effective_date=next_buy.date
+        if next_buy
+        else next_sell.date
+        if next_sell
+        else None,
         spread=round(latest_sell.value - latest_buy.value, 4),
         observed_at=max(
-            client.last_observed_at(settings.bccr_indicator_buy, buy_history),
-            client.last_observed_at(settings.bccr_indicator_sell, sell_history),
+            datetime.combine(latest_buy.date, datetime.min.time(), tzinfo=timezone.utc),
+            datetime.combine(
+                latest_sell.date, datetime.min.time(), tzinfo=timezone.utc
+            ),
         ),
     )
     return MarketContext(

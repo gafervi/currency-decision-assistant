@@ -15,6 +15,9 @@ export interface RateSnapshot {
   officialSellRate: number;
   previousOfficialBuyRate: number;
   previousOfficialSellRate: number;
+  nextOfficialBuyRate: number | null;
+  nextOfficialSellRate: number | null;
+  nextEffectiveDate: string | null;
   spread: number;
   observedAt: string;
 }

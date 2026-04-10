@@ -89,12 +89,12 @@ export function RecommendationCircle({
 
   const rateCards = [
     {
-      label: 'COMPRA',
+      label: copy[locale].buyPrice.toUpperCase(),
       current: buyRate,
       previous: previousBuyRate,
     },
     {
-      label: 'VENTA',
+      label: copy[locale].sellPrice.toUpperCase(),
       current: sellRate,
       previous: previousSellRate,
     },
@@ -141,16 +141,6 @@ export function RecommendationCircle({
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-lg p-5 sm:p-8 text-center relative overflow-hidden">
-      {/* Timestamp in corner */}
-      <div className="absolute top-4 right-4 text-right hidden sm:block">
-        <div className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-          {dateStr}
-        </div>
-        <div className="text-xs font-semibold text-gray-600 dark:text-gray-300">
-          {timeStr}
-        </div>
-      </div>
-
       <div className="flex flex-col items-center">
         <div className="mb-6 flex w-full flex-col items-center gap-4">
           <div className={`animate-breathe-ring relative flex h-36 w-36 items-center justify-center rounded-full ${getCircleColor()} shadow-2xl ring-8 ring-white/40 dark:ring-white/10 sm:h-40 sm:w-40`}>
@@ -235,6 +225,11 @@ export function RecommendationCircle({
               </div>
             );
           })}
+        </div>
+
+        <div className="mt-3 text-center text-[10px] text-gray-400 dark:text-gray-500 sm:text-[11px]">
+          <div className="capitalize">{dateStr}</div>
+          <div>{timeStr}</div>
         </div>
 
       </div>

@@ -21,6 +21,9 @@ interface SummaryApiResponse {
     official_sell_rate: number;
     previous_official_buy_rate: number;
     previous_official_sell_rate: number;
+    next_official_buy_rate: number | null;
+    next_official_sell_rate: number | null;
+    next_effective_date: string | null;
     spread: number;
     observed_at: string;
   };
@@ -81,6 +84,9 @@ function mapSnapshot(snapshot: SummaryApiResponse['snapshot']): RateSnapshot {
     officialSellRate: snapshot.official_sell_rate,
     previousOfficialBuyRate: snapshot.previous_official_buy_rate,
     previousOfficialSellRate: snapshot.previous_official_sell_rate,
+    nextOfficialBuyRate: snapshot.next_official_buy_rate,
+    nextOfficialSellRate: snapshot.next_official_sell_rate,
+    nextEffectiveDate: snapshot.next_effective_date,
     spread: snapshot.spread,
     observedAt: snapshot.observed_at,
   };

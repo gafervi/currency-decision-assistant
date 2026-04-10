@@ -15,6 +15,9 @@ class RateSnapshot(BaseModel):
     official_sell_rate: float
     previous_official_buy_rate: float
     previous_official_sell_rate: float
+    next_official_buy_rate: float | None = None
+    next_official_sell_rate: float | None = None
+    next_effective_date: date | None = None
     spread: float
     observed_at: datetime
 

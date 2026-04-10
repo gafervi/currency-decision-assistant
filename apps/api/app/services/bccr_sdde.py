@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from functools import lru_cache
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -80,6 +81,8 @@ class BccrSddeClient:
         rows = self._extract_rows(payload)
         points: list[HistoryPoint] = []
 
+        costa_rica_today = datetime.now(ZoneInfo("America/Costa_Rica")).date()
+
         for row in rows:
             fecha = row.get("fecha") or row.get("Fecha")
             valor = (
@@ -100,7 +103,7 @@ class BccrSddeClient:
                 HistoryPoint(
                     date=observed_on,
                     value=float(valor),
-                    future_dated=observed_on > datetime.now(timezone.utc).date(),
+                    future_dated=observed_on > costa_rica_today,
                 )
             )
 

@@ -16,6 +16,7 @@ type ChartPoint = {
   date: string;
   axisLabel: string;
   rate: number | null;
+  preview: number | null;
   timestamp: string;
 };
 
@@ -30,6 +31,7 @@ export function MarketChart({ history, mode, locale }: MarketChartProps) {
       date: formatChartDate(point.date, false, locale),
       axisLabel: formatChartDate(point.date, false, locale),
       rate: point.futureDated ? null : point.value,
+      preview: point.futureDated ? point.value : null,
       timestamp: point.date,
     }));
   }, [history, timeRange, locale]);
@@ -38,6 +40,7 @@ export function MarketChart({ history, mode, locale }: MarketChartProps) {
     const validRates = data.flatMap((point) => {
       const values: number[] = [];
       if (typeof point.rate === 'number') values.push(point.rate);
+      if (typeof point.preview === 'number') values.push(point.preview);
       return values;
     });
 
@@ -90,6 +93,48 @@ export function MarketChart({ history, mode, locale }: MarketChartProps) {
       return path;
     };
 
+    const buildPreviewPath = () => {
+      const firstPreviewIndex = data.findIndex((point) => typeof point.preview === 'number');
+      if (firstPreviewIndex <= 0) {
+        return '';
+      }
+
+      let path = '';
+      const startIndex = firstPreviewIndex - 1;
+
+      for (let index = startIndex; index < data.length; index += 1) {
+        const point = data[index];
+        const value = typeof point.preview === 'number' ? point.preview : point.rate;
+
+        if (typeof value !== 'number') {
+          continue;
+        }
+
+        const x = toX(index);
+        const y = toY(value);
+
+        if (!path) {
+          path = `M ${x} ${y}`;
+          continue;
+        }
+
+        const previousIndex = index - 1;
+        const previousPoint = data[previousIndex];
+        const previousValue = typeof previousPoint?.preview === 'number' ? previousPoint.preview : previousPoint?.rate;
+        if (typeof previousValue !== 'number') {
+          path += ` M ${x} ${y}`;
+          continue;
+        }
+
+        const previousX = toX(previousIndex);
+        const previousY = toY(previousValue);
+        const controlX = (previousX + x) / 2;
+        path += ` C ${controlX} ${previousY}, ${controlX} ${y}, ${x} ${y}`;
+      }
+
+      return path;
+    };
+
     const ticks = Array.from({ length: 4 }, (_, index) => {
       const value = min + (range * index) / 3;
       return { value, y: toY(value) };
@@ -120,6 +165,7 @@ export function MarketChart({ history, mode, locale }: MarketChartProps) {
       plotHeight,
       ticks,
       ratePath: buildPath('rate'),
+      previewPath: buildPreviewPath(),
       labelIndexes,
       toX,
       toY,
@@ -163,7 +209,7 @@ export function MarketChart({ history, mode, locale }: MarketChartProps) {
         isPreview: boolean;
       }> = [];
 
-      if (typeof point.rate === 'number') {
+        if (typeof point.rate === 'number') {
         points.push({
           key: `${point.timestamp}-rate`,
           x: chartModel.toX(index),
@@ -172,19 +218,40 @@ export function MarketChart({ history, mode, locale }: MarketChartProps) {
           label: point.date,
           isPreview: false,
         });
-      }
+        }
 
-        return points;
-      });
-  }, [chartModel, data]);
+        if (typeof point.preview === 'number') {
+          points.push({
+            key: `${point.timestamp}-preview`,
+            x: chartModel.toX(index),
+            y: chartModel.toY(point.preview),
+            value: point.preview,
+            label: `${point.date} (${copy[locale].tomorrowTag})`,
+            isPreview: true,
+          });
+        }
 
-  const activePoint = interactivePoints.find((point) => point.key === activePointKey) ?? interactivePoints[interactivePoints.length - 1] ?? null;
-  const activeTooltipStyle = activePoint && chartModel
+         return points;
+       });
+  }, [chartModel, data, locale]);
+
+  const firstPreviewIndex = data.findIndex((point) => typeof point.preview === 'number');
+  const previewDividerX = chartModel && firstPreviewIndex > 0
+    ? chartModel.toX(firstPreviewIndex - 1)
+    : null;
+
+  const currentPoints = interactivePoints.filter((point) => !point.isPreview);
+  const latestCurrentPoint = currentPoints.length > 0 ? currentPoints[currentPoints.length - 1] : null;
+  const summaryPoint = interactivePoints.find((point) => point.key === activePointKey) ?? latestCurrentPoint;
+  const hoverPoint = interactivePoints.find((point) => point.key === activePointKey) ?? null;
+  const activeTooltipStyle = hoverPoint && chartModel
     ? {
-        left: `min(max(calc(${(activePoint.x / chartModel.width) * 100}% - 4rem), 1rem), calc(100% - 11rem))`,
-        top: `${Math.max(1, ((activePoint.y - 110) / chartModel.height) * 100)}%`,
+        left: `min(max(calc(${(hoverPoint.x / chartModel.width) * 100}% - 4rem), 1rem), calc(100% - 11rem))`,
+        top: `${Math.max(1, ((hoverPoint.y - 110) / chartModel.height) * 100)}%`,
       }
     : null;
+  const currentSeriesLabel = mode === 'buy' ? copy[locale].sellPrice : copy[locale].buyPrice;
+  const tomorrowSeriesLabel = mode === 'buy' ? copy[locale].tomorrowSellPrice : copy[locale].tomorrowBuyPrice;
 
   return (
     <div className="rounded-[2rem] border border-gray-200 bg-white p-5 text-gray-900 shadow-[0_20px_60px_rgba(15,23,42,0.08)] dark:border-gray-800 dark:bg-[#0f172a] dark:text-white dark:shadow-[0_20px_60px_rgba(15,23,42,0.35)] sm:p-6">
@@ -213,16 +280,16 @@ export function MarketChart({ history, mode, locale }: MarketChartProps) {
       {chartModel ? (
         <div className="w-full overflow-x-auto">
           <div className="mb-4 min-h-16 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-white/10 dark:bg-white/6">
-            {activePoint && rangeSummary ? (
+            {summaryPoint && rangeSummary ? (
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-wide text-blue-500 dark:text-blue-300">
-                    {mode === 'buy' ? copy[locale].sellPrice : copy[locale].buyPrice}
+                  <div className={`text-xs font-semibold uppercase tracking-wide ${summaryPoint.isPreview ? 'text-violet-600 dark:text-violet-300' : 'text-blue-500 dark:text-blue-300'}`}>
+                    {summaryPoint.isPreview ? tomorrowSeriesLabel : currentSeriesLabel}
                   </div>
                   <div className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
-                    ₡{formatCurrency(activePoint.value, locale)}
+                    ₡{formatCurrency(summaryPoint.value, locale)}
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-slate-400">{activePoint.label}</div>
+                  <div className="text-sm text-gray-500 dark:text-slate-400">{summaryPoint.label}</div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -252,8 +319,18 @@ export function MarketChart({ history, mode, locale }: MarketChartProps) {
           </div>
 
           <div className="overflow-hidden rounded-[1.75rem] border border-gray-200 bg-gray-50 p-2 dark:border-white/10 dark:bg-[#131c2f]">
-            <div className="overflow-x-auto">
-              <div className="relative w-[720px] min-w-[720px] sm:w-full sm:min-w-0">
+            <div
+              className="overflow-x-auto"
+              onMouseLeave={() => {
+                setActivePointKey(null);
+              }}
+            >
+              <div
+                className="relative w-[720px] min-w-[720px] sm:w-full sm:min-w-0"
+                onMouseLeave={() => {
+                  setActivePointKey(null);
+                }}
+              >
                 <svg viewBox={`0 0 ${chartModel.width} ${chartModel.height}`} className="h-[400px] w-full sm:h-[360px]" role="img" aria-label="Official exchange rate chart">
               {chartModel.ticks.map((tick) => (
                 <g key={tick.value}>
@@ -289,13 +366,39 @@ export function MarketChart({ history, mode, locale }: MarketChartProps) {
                 className="animate-draw-line"
                 style={{ strokeDasharray: 1, strokeDashoffset: 1 }}
               />
-              {activePoint ? (
+              {chartModel.previewPath ? (
+                <path
+                  key={`preview-${timeRange}-${data[data.length - 1]?.timestamp ?? 'empty'}`}
+                  d={chartModel.previewPath}
+                  fill="none"
+                  stroke="#8b5cf6"
+                  strokeWidth="3.5"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  pathLength={1}
+                  className="animate-draw-line"
+                  style={{ strokeDasharray: 1, strokeDashoffset: 1, animationDelay: '520ms' }}
+                />
+              ) : null}
+              {previewDividerX !== null ? (
                 <line
-                  x1={activePoint.x}
-                  x2={activePoint.x}
+                  x1={previewDividerX}
+                  x2={previewDividerX}
                   y1={chartModel.padding.top}
                   y2={chartModel.padding.top + chartModel.plotHeight}
-                  stroke="#cbd5e1"
+                  stroke="#8b5cf6"
+                  strokeWidth="1.5"
+                  strokeDasharray="6 6"
+                  opacity="0.9"
+                />
+              ) : null}
+              {hoverPoint ? (
+                <line
+                  x1={hoverPoint.x}
+                  x2={hoverPoint.x}
+                  y1={chartModel.padding.top}
+                  y2={chartModel.padding.top + chartModel.plotHeight}
+                  stroke={hoverPoint.isPreview ? '#8b5cf6' : '#cbd5e1'}
                   strokeWidth="1.5"
                 />
               ) : null}
@@ -313,12 +416,14 @@ export function MarketChart({ history, mode, locale }: MarketChartProps) {
                     y={chartModel.padding.top}
                     width={endX - startX}
                     height={chartModel.plotHeight}
-                    fill="transparent"
-                    className="cursor-pointer"
-                    onMouseEnter={() => setActivePointKey(interactive?.key ?? null)}
-                    onFocus={() => setActivePointKey(interactive?.key ?? null)}
-                  />
-                );
+                     fill="transparent"
+                     className="cursor-pointer"
+                     onMouseEnter={() => {
+                       setActivePointKey(interactive?.key ?? null);
+                     }}
+                     onFocus={() => setActivePointKey(interactive?.key ?? null)}
+                   />
+                 );
               })}
 
               {chartModel.labelIndexes.map((index) => {
@@ -338,16 +443,16 @@ export function MarketChart({ history, mode, locale }: MarketChartProps) {
                 })}
                 </svg>
 
-                {activePoint ? (
+                {hoverPoint ? (
                   <div
-                    className="pointer-events-none absolute w-36 rounded-2xl border border-gray-200 bg-white/95 px-3 py-2.5 text-left shadow-xl backdrop-blur dark:border-white/10 dark:bg-[#1e293b]/95 sm:w-40 sm:px-4 sm:py-3"
+                    className={`pointer-events-none absolute w-36 rounded-2xl px-3 py-2.5 text-left shadow-xl backdrop-blur sm:w-40 sm:px-4 sm:py-3 ${hoverPoint.isPreview ? 'border border-violet-200 bg-violet-50/95 dark:border-violet-400/20 dark:bg-violet-950/90' : 'border border-gray-200 bg-white/95 dark:border-white/10 dark:bg-[#1e293b]/95'}`}
                     style={activeTooltipStyle ?? undefined}
                   >
-                    <div className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-300">
-                      {mode === 'buy' ? copy[locale].sellPrice : copy[locale].buyPrice}
+                    <div className={`text-xs font-semibold uppercase tracking-[0.24em] ${hoverPoint.isPreview ? 'text-violet-600 dark:text-violet-300' : 'text-blue-300'}`}>
+                      {hoverPoint.isPreview ? tomorrowSeriesLabel : currentSeriesLabel}
                     </div>
-                    <div className="mt-1 text-sm text-gray-500 dark:text-slate-400">{activePoint.label}</div>
-                    <div className="mt-2 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">₡{formatCurrency(activePoint.value, locale)}</div>
+                    <div className="mt-1 text-sm text-gray-500 dark:text-slate-400">{hoverPoint.label}</div>
+                    <div className="mt-2 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">₡{formatCurrency(hoverPoint.value, locale)}</div>
                   </div>
                 ) : null}
               </div>
@@ -357,8 +462,14 @@ export function MarketChart({ history, mode, locale }: MarketChartProps) {
           <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500 dark:text-slate-400">
             <div className="flex items-center gap-2">
               <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
-              <span>{mode === 'buy' ? copy[locale].sellPrice : copy[locale].buyPrice}</span>
+              <span>{currentSeriesLabel}</span>
             </div>
+            {chartModel.previewPath ? (
+              <div className="flex items-center gap-2">
+                <span className="inline-block h-2 w-2 rounded-full bg-violet-500" />
+                <span>{tomorrowSeriesLabel}</span>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
